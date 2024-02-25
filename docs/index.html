@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>glb.zstd</title>
+		<meta charset="utf-8">
+		<meta name="robots" content="noindex, nofollow">
+		<link rel="icon" href="data:;base64,=">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			
+			* {
+				margin:0;
+				padding:0;
+				-webkit-user-select:none;
+				-moz-user-select:none;
+				-ms-user-select:none;
+			}
+			
+			body {
+				background:#808080;
+				width:100dvw;
+				height:100dvh;
+				overflow:hidden;
+			}
+			
+			input {
+				background:#F00;
+				border:none;
+				width:17px;
+				height:17px;
+				border-radius:50%;
+			}
+			
+		</style>
+		<script src="./decode.js"></script>
+		<script src="./twgl.min.js"></script>
+	</head>
+	<body>
+		<script>
+			
+			const GUIDE = true;
+			
+			const bar = [
+				document.createElement("div"),
+				document.createElement("div")
+			];
+			const style = {position:"absolute",background:"#0FF"};
+			Object.assign(bar[0].style,style);
+			Object.assign(bar[0].style,{top:0,left:"50%"});
+			Object.assign(bar[0].style,{width:"1px",height:"100dvh"});
+			bar[0].style.zIndex = 128;
+			Object.assign(bar[1].style,style);
+			Object.assign(bar[1].style,{top:"50%",left:0});
+			Object.assign(bar[1].style,{width:"100dvw",height:"1px"});
+			bar[1].style.zIndex = 129;
+			
+			if(GUIDE) {
+				document.body.appendChild(bar[0]);
+				document.body.appendChild(bar[1]);
+			}
+			
+		</script>
+		<script type="module">
+			
+			const width = 1920<<1;
+			const height = 1080<<1;
+			
+			import { Loader } from "./Loader.js";
+			
+			const list = ["./76.glb.zstd"];
+			Loader.load(list,(results)=>{
+								
+				const target = list[0];
+				if(!results[target]) return;
+				
+						
+				const glb = results[target];
+				
+				const canvas = document.createElement("canvas");
+				Object.assign(canvas,{width:width,height:height});
+				Object.assign(canvas.style,{"vertical-align":"top","outline":"1px solid #0FF"});
+				
+				const div = document.createElement("div");
+				Object.assign(div.style,{"display":"flex","width":"100vw","height":"100dvh"});
+				div.appendChild(canvas);
+				
+				const gl = canvas.getContext("webgl",{antialias:true});
+				const type = (glb.bytes===4)?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT;
+				if(type===gl.UNSIGNED_INT) gl.getExtension("OES_element_index_uint");
+								
+				const program = twgl.createProgramFromSources(gl,[`
+attribute vec3 position;
+attribute vec2 texcoord;
+uniform mat4 PM;
+varying vec2 v_texcoord;
+void main() {
+	v_texcoord = texcoord;
+	gl_Position = PM*(vec4(position,1.0));
+}`,`
+precision mediump float;
+uniform sampler2D u_texture;
+varying vec2 v_texcoord;
+varying vec3 v_xyz;
+void main() {
+	gl_FragColor = texture2D(u_texture,v_texcoord);
+}`]);
+
+				if(program) {
+					const programInfo = twgl.createProgramInfoFromProgram(gl,program);
+
+					const bufferInfo = {};
+					bufferInfo[target] = twgl.createBufferInfoFromArrays(gl,{
+						position:{numComponents:3,data:glb.v},
+						texcoord:{numComponents:2,data:glb.vt},
+						indices: {numComponents:3,data:glb.f}
+					});
+					
+					twgl.setDefaults({textureColor:[0,0,0,0]});
+
+
+					const uniforms = {};
+					uniforms[target] = {
+						u_texture:twgl.createTexture(gl,{
+							min:gl.LINEAR, // NEAREST, LINEAR
+							mag:gl.LINEAR,
+							format:gl.RGBA,
+							src:glb.img
+						}),
+						PM:results[target].PM
+					}
+								
+					const resize = (e)=>{
+						const sx = window.innerWidth/width;
+						const sy = window.innerHeight/height;
+						if(sx<sy) {
+							Object.assign(canvas.style,{"width":"100dvw","height":"auto","margin":"auto 0"});
+						}
+						else {
+							Object.assign(canvas.style,{"width":"auto","height":"100dvh","margin":"0 auto"});
+						}
+					}
+					
+					let tid = 0;
+					window.addEventListener("resize",(e)=>{
+						if(tid) clearTimeout(tid);
+						tid = setTimeout((e)=>resize(),15);
+					});
+					resize();
+					
+					setInterval(()=>{
+						gl.viewport(0,0,width,height);
+						gl.enable(gl.DEPTH_TEST);
+						gl.depthFunc(gl.LEQUAL);
+						gl.clearColor(1.0,1.0,1.0,1.0);
+						gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+						
+						gl.useProgram(program);
+						twgl.setBuffersAndAttributes(gl,programInfo,bufferInfo[target]);
+						twgl.setUniforms(programInfo,uniforms[target]);
+						gl.drawElements(gl.TRIANGLES,bufferInfo[target].numElements,type,0);
+					},33);
+					
+					document.body.appendChild(div);
+				}
+			});
+		</script>
+	</body>
+</html>
