@@ -3,8 +3,8 @@
 
 int main(int argc, char *argv[]) {
 	@autoreleasepool {
-		NSString *src = @"76.glb";
-		NSData *glb = [[NSData alloc] initWithContentsOfFile:[NSString stringWithFormat:@"./",src]];
+		NSString *src = @"./76.glb";
+		NSData *glb = [[NSData alloc] initWithContentsOfFile:src];
 		if(glb) {
 			unsigned int length = glb.length;
 			unsigned char *buf = new unsigned char[length];
@@ -12,7 +12,6 @@ int main(int argc, char *argv[]) {
 			unsigned int ret = (unsigned int)ZSTD_compress(buf,length,glb.bytes,length,1);
 			if(ret>=1) {
 				[dst appendBytes:new unsigned int[1]{length} length:4];
-				[dst appendBytes:new const char[4]{'z','s','t','d'} length:4];
 				[dst appendBytes:buf length:ret];
 				[dst writeToFile:[NSString stringWithFormat:@"./docs/%@.zstd",src] atomically:YES];
 			}
@@ -21,6 +20,9 @@ int main(int argc, char *argv[]) {
 			}
 			if(buf) delete[] buf;
 			glb = nil;
+		}
+		else {
+			NSLog(@"Error");
 		}
 	}
 }

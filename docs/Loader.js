@@ -7,13 +7,13 @@ export const Loader = Object.freeze({
 		};
 		
 		const bin = new Uint8Array(data);
-		if(new TextDecoder().decode(bin.slice(4,8))==="zstd") {
-			const src = new Uint8Array(Module.HEAPU8.buffer,Module._malloc(data.byteLength-8),data.byteLength-8);
-			for(let k=0; k<data.byteLength-8; k++) src[k] = bin[8+k];
+		if(bin[4]==0x28&&bin[5]==0xB5&&bin[6]==0x2F&&bin[7]==0xFD) {
+			const src = new Uint8Array(Module.HEAPU8.buffer,Module._malloc(data.byteLength-4),data.byteLength-4);
+			for(let k=0; k<data.byteLength-4; k++) src[k] = bin[4+k];
 			const length = toU32(bin,0);
 			const dst = new Uint8Array(Module.HEAPU8.buffer,Module._malloc(length),length);
 			const Decode = Module.cwrap("decode","number",["number","number","number","number"]);
-			if(length==Decode(dst.byteOffset,length,src.byteOffset,data.byteLength-8)) {
+			if(length==Decode(dst.byteOffset,length,src.byteOffset,data.byteLength-4)) {
 				const U8 = new Uint8Array(length);
 				for(let k=0; k<length; k++) U8[k] = dst[k];
 				if(new TextDecoder().decode(U8.slice(0,4))==="glTF") {
